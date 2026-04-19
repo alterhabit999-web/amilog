@@ -63,25 +63,25 @@ const SCREEN_TITLES = {
   yarnList:             'あみログ',
   yarnDetail:           '毛糸の詳細',
   search:               '条件検索',
-  projectList:          '作品管理',
-  projectDetail:        '作品の詳細',
-  workLog:              '作業記録',
-  counter:              '段数カウンター',
-  yarnLists:            'リスト管理',
+  yarnLists:            'マイリスト',
   yarnListDetail:       'リストの詳細',
   communityLists:       'みんなの毛糸リスト',
   communityListDetail:  'リストを見る',
+  projectList:          '作品記録',
+  projectDetail:        '作品の詳細',
+  workLog:              '作業記録',
+  counter:              '段数カウンター',
   settings:             '設定',
 };
 
 const NAV_ITEMS = [
   { screen: 'yarnList',       label: '毛糸一覧',          iconType: 'yarn'      },
   { screen: 'search',         label: '条件検索',          iconType: 'search'    },
-  { screen: 'projectList',    label: '作品管理',          iconType: 'clipboard' },
+  { screen: 'yarnLists',      label: 'マイリスト',        iconType: 'list'      },
+  { screen: 'communityLists', label: 'みんなの毛糸リスト', iconType: 'users'     },
+  { screen: 'projectList',    label: '作品記録',          iconType: 'clipboard' },
   { screen: 'workLog',        label: '作業記録',          iconType: 'notebook'  },
   { screen: 'counter',        label: 'カウンター',        iconType: 'counter'   },
-  { screen: 'yarnLists',      label: 'リスト管理',        iconType: 'list'      },
-  { screen: 'communityLists', label: 'みんなのリスト',    iconType: 'users'     },
   { screen: 'settings',       label: '設定',              iconType: 'settings'  },
 ];
 
@@ -1977,7 +1977,7 @@ function CounterScreen({ projects, rowCounts, onSave }) {
         <label style={S.label}>作品を選択</label>
         {projects.length === 0 ? (
           <p style={{ color: C.textMuted, fontSize: 13, margin: 0 }}>
-            先に「作品管理」から作品を登録してください
+            先に「作品記録」から作品を登録してください
           </p>
         ) : (
           <SelectWrapper
