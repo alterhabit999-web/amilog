@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// Supabase クライアント初期化
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASE_ANON_KEY
+);
 
 // ═══════════════════════════════════════════════════════════════
 // あみログ（AMILOG）- 毛糸・作品管理アプリ
@@ -1056,7 +1063,7 @@ function WorkLogScreen({ workLogs, yarns, projects }) {
 // ═══════════════════════════════════════════════════════════════
 // SettingsScreen
 // ═══════════════════════════════════════════════════════════════
-function SettingsScreen({ projects, yarns, workLogs, onExportCSV, onClearData }) {
+function SettingsScreen({ projects, yarns, workLogs, onExportCSV, onClearData, userEmail, onLogout }) {
   const totalStock = Math.round(
     yarns.reduce((s, y) => s + (y.quantity || 0) * (y.pricePerBall || 0), 0)
   );
@@ -1101,16 +1108,26 @@ function SettingsScreen({ projects, yarns, workLogs, onExportCSV, onClearData })
       <div style={S.card}>
         <p style={S.sectionTitle}>データ管理</p>
         <p style={{ fontSize: 13, color: C.textSub, margin: '0 0 16px' }}>
-          データはこのデバイスのブラウザに保存されています。<br />
-          今後のアップデートでクラウド同期に対応予定です。
+          データはクラウド（Supabase）に保存されています。<br />
+          複数の端末から同じアカウントでアクセスできます。
         </p>
         <button onClick={onClearData} style={{ ...S.btnDanger, width: '100%' }}>
           全データを削除する
         </button>
       </div>
 
+      <div style={S.card}>
+        <p style={S.sectionTitle}>アカウント</p>
+        <p style={{ fontSize: 13, color: C.textSub, margin: '0 0 16px', wordBreak: 'break-all' }}>
+          ログイン中：{userEmail}
+        </p>
+        <button onClick={onLogout} style={{ ...S.btnSecondary, width: '100%' }}>
+          ログアウト
+        </button>
+      </div>
+
       <div style={{ textAlign: 'center', padding: '20px 0' }}>
-        <p style={{ margin: 0, fontSize: 12, color: C.textMuted }}>あみログ (AMILOG) v1.0</p>
+        <p style={{ margin: 0, fontSize: 12, color: C.textMuted }}>あみログ (AMILOG) v2.0</p>
       </div>
     </div>
   );
@@ -1466,6 +1483,21 @@ function WorkLogFormModal({ yarns, projects, defaultProjectId, onSave, onClose }
 }
 
 // ═══════════════════════════════════════════════════════════════
+// DB ↔ JS 変換関数（snake_case ↔ camelCase）
+// ═══════════════════════════════════════════════════════════════
+const yarnToDb   = (y, uid) => ({ id: y.id, user_id: uid, name: y.name, maker: y.maker, material: y.material, thickness: y.thickness, color_name: y.colorName, color_number: y.colorNumber, lot: y.lot, price_per_ball: y.pricePerBall, weight_per_ball: y.weightPerBall, length_per_ball: y.lengthPerBall, quantity: y.quantity, photo_url: y.photoUrl, usage_photo_url: y.usagePhotoUrl, note: y.note, created_at: y.createdAt });
+const yarnFromDb = (r) => ({ id: r.id, name: r.name, maker: r.maker, material: r.material, thickness: r.thickness, colorName: r.color_name, colorNumber: r.color_number, lot: r.lot, pricePerBall: r.price_per_ball, weightPerBall: r.weight_per_ball, lengthPerBall: r.length_per_ball, quantity: r.quantity, photoUrl: r.photo_url, usagePhotoUrl: r.usage_photo_url, note: r.note, createdAt: r.created_at });
+
+const projToDb   = (p, uid) => ({ id: p.id, user_id: uid, name: p.name, description: p.description, status: p.status, start_date: p.startDate, end_date: p.endDate, photo_url: p.photoUrl, total_time_minutes: p.totalTimeMinutes, yarn_usages: p.yarnUsages, note: p.note, created_at: p.createdAt });
+const projFromDb = (r) => ({ id: r.id, name: r.name, description: r.description, status: r.status, startDate: r.start_date, endDate: r.end_date, photoUrl: r.photo_url, totalTimeMinutes: r.total_time_minutes, yarnUsages: r.yarn_usages || [], note: r.note, createdAt: r.created_at });
+
+const logToDb    = (l, uid) => ({ id: l.id, user_id: uid, date: l.date, project_id: l.projectId, yarn_id: l.yarnId, used_grams: l.usedGrams, used_meters: l.usedMeters, work_minutes: l.workMinutes, note: l.note, created_at: l.createdAt });
+const logFromDb  = (r) => ({ id: r.id, date: r.date, projectId: r.project_id, yarnId: r.yarn_id, usedGrams: r.used_grams, usedMeters: r.used_meters, workMinutes: r.work_minutes, note: r.note, createdAt: r.created_at });
+
+const rcToDb     = (r, uid) => ({ id: r.id, user_id: uid, project_id: r.projectId, date: r.date, count: r.count, note: r.note, created_at: r.createdAt });
+const rcFromDb   = (r) => ({ id: r.id, projectId: r.project_id, date: r.date, count: r.count, note: r.note, createdAt: r.created_at });
+
+// ═══════════════════════════════════════════════════════════════
 // CounterScreen（段数カウンター）
 // ═══════════════════════════════════════════════════════════════
 function CounterScreen({ projects, rowCounts, onSave }) {
@@ -1627,12 +1659,96 @@ function CounterScreen({ projects, rowCounts, onSave }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// LoginScreen（ログイン・新規登録）
+// ═══════════════════════════════════════════════════════════════
+function LoginScreen() {
+  const [mode,     setMode]     = useState('login');
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
+  const [message,  setMessage]  = useState('');
+
+  const handleSubmit = async () => {
+    setLoading(true); setError(''); setMessage('');
+    try {
+      if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        setMessage('確認メールを送信しました。メール内のリンクをクリックしてください。');
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      fontFamily: FONT, background: C.bgKinari,
+      minHeight: '100vh', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}>
+      <div style={{ background: C.bg, width: '100%', maxWidth: 360, padding: '40px 32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <p style={{ margin: 0, fontSize: 30, fontWeight: 700, color: C.accent, letterSpacing: '0.04em' }}>あみログ</p>
+          <p style={{ margin: '4px 0 0', fontSize: 11, color: C.textMuted, letterSpacing: '0.16em' }}>AMILOG</p>
+        </div>
+
+        {/* ログイン / 新規登録 切替タブ */}
+        <div style={{ display: 'flex', marginBottom: 28, borderBottom: `1px solid ${C.border}` }}>
+          {[['login', 'ログイン'], ['signup', '新規登録']].map(([m, label]) => (
+            <button key={m} onClick={() => { setMode(m); setError(''); setMessage(''); }}
+              style={{
+                flex: 1, background: 'none', border: 'none', cursor: 'pointer',
+                padding: '10px 0', fontSize: 14, fontFamily: FONT,
+                color: mode === m ? C.accent : C.textMuted,
+                fontWeight: mode === m ? 700 : 400,
+                borderBottom: mode === m ? `2px solid ${C.accent}` : '2px solid transparent',
+                marginBottom: -1,
+              }}>{label}</button>
+          ))}
+        </div>
+
+        <div style={S.formGroup}>
+          <label style={S.label}>メールアドレス</label>
+          <input style={S.input} type="email" value={email}
+            onChange={e => setEmail(e.target.value)} placeholder="example@email.com" />
+        </div>
+        <div style={S.formGroup}>
+          <label style={S.label}>パスワード（6文字以上）</label>
+          <input style={S.input} type="password" value={password}
+            onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+            onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
+        </div>
+
+        {error   && <p style={{ color: C.danger,  fontSize: 13, margin: '0 0 12px' }}>{error}</p>}
+        {message && <p style={{ color: C.success, fontSize: 13, margin: '0 0 12px' }}>{message}</p>}
+
+        <button onClick={handleSubmit} disabled={loading}
+          style={{ ...S.btnAccent, width: '100%', padding: '14px', fontSize: 15, opacity: loading ? 0.6 : 1 }}>
+          {loading ? '処理中...' : mode === 'login' ? 'ログイン' : '登録する'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // App（メインコンポーネント）
 // ═══════════════════════════════════════════════════════════════
 export default function App() {
   // ── ナビゲーション ──────────────────────────────────
   const [screen,      setScreen]      = useState('yarnList');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ── 認証 ───────────────────────────────────────────
+  const [user,        setUser]        = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // ── データ ─────────────────────────────────────────
   const [yarns,     setYarns]     = useState([]);
@@ -1661,93 +1777,109 @@ export default function App() {
   });
   const [searchResults, setSearchResults] = useState(null);
 
-  // 読み込みが完了したかを追跡するフラグ
-  // （読み込み前に保存処理が走ってデータが消えるバグを防ぐ）
-  const isLoaded = useRef(false);
-
-  // ── localStorage 読み込み ───────────────────────────
+  // ── 認証状態の監視 ─────────────────────────────────
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('amilogData');
-      if (raw) {
-        const d = JSON.parse(raw);
-        setYarns(d.yarns       || []);
-        setProjects(d.projects || []);
-        setWorkLogs(d.workLogs || []);
-        setRowCounts(d.rowCounts || []);
-      }
-    } catch (e) {
-      console.error('データ読み込みエラー', e);
-    }
-    isLoaded.current = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  // ── localStorage 保存 ───────────────────────────────
+  // ── ログイン時にデータ取得 ──────────────────────────
   useEffect(() => {
-    // 読み込みが完了する前は保存しない
-    if (!isLoaded.current) return;
-    try {
-      localStorage.setItem('amilogData', JSON.stringify({ yarns, projects, workLogs, rowCounts }));
-    } catch (e) {
-      console.error('データ保存エラー（容量超過の可能性）', e);
-      alert('データの保存に失敗しました。写真のデータが大きすぎる可能性があります。');
-    }
-  }, [yarns, projects, workLogs, rowCounts]);
-
-  // ── 毛糸 CRUD ───────────────────────────────────────
-  const saveYarn = (data) => {
-    if (data.id) {
-      setYarns(prev => prev.map(y => y.id === data.id ? data : y));
+    if (user) {
+      fetchData(user.id);
     } else {
-      setYarns(prev => [{ ...data, id: genId(), createdAt: new Date().toISOString() }, ...prev]);
+      setYarns([]); setProjects([]); setWorkLogs([]); setRowCounts([]);
     }
-    setYarnModalOpen(false);
-    setYarnEditId(null);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchData = async (userId) => {
+    try {
+      const [y, p, w, r] = await Promise.all([
+        supabase.from('yarns').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('projects').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('work_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('row_counts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      ]);
+      if (y.data) setYarns(y.data.map(yarnFromDb));
+      if (p.data) setProjects(p.data.map(projFromDb));
+      if (w.data) setWorkLogs(w.data.map(logFromDb));
+      if (r.data) setRowCounts(r.data.map(rcFromDb));
+    } catch (e) {
+      console.error('データ取得エラー', e);
+    }
   };
 
-  const deleteYarn = (id) => {
+  // ── 毛糸 CRUD ───────────────────────────────────────
+  const saveYarn = async (data) => {
+    const id   = data.id || genId();
+    const yarn = { ...data, id, createdAt: data.createdAt || new Date().toISOString() };
+    if (data.id) {
+      setYarns(prev => prev.map(y => y.id === data.id ? yarn : y));
+    } else {
+      setYarns(prev => [yarn, ...prev]);
+    }
+    setYarnModalOpen(false); setYarnEditId(null);
+    const { error } = await supabase.from('yarns').upsert(yarnToDb(yarn, user.id));
+    if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); }
+  };
+
+  const deleteYarn = async (id) => {
     if (!window.confirm('この毛糸を削除しますか？')) return;
     setYarns(prev => prev.filter(y => y.id !== id));
     navigate('yarnList');
+    const { error } = await supabase.from('yarns').delete().eq('id', id).eq('user_id', user.id);
+    if (error) console.error(error);
   };
 
   // ── プロジェクト CRUD ───────────────────────────────
-  const saveProject = (data) => {
+  const saveProject = async (data) => {
+    const id      = data.id || genId();
+    const project = data.id
+      ? { ...projects.find(p => p.id === data.id), ...data }
+      : { ...data, id, createdAt: new Date().toISOString(), yarnUsages: [], totalTimeMinutes: 0 };
     if (data.id) {
-      setProjects(prev => prev.map(p => p.id === data.id ? { ...p, ...data } : p));
+      setProjects(prev => prev.map(p => p.id === data.id ? project : p));
     } else {
-      setProjects(prev => [{
-        ...data, id: genId(), createdAt: new Date().toISOString(),
-        yarnUsages: [], totalTimeMinutes: 0,
-      }, ...prev]);
+      setProjects(prev => [project, ...prev]);
     }
-    setProjectModalOpen(false);
-    setProjectEditId(null);
+    setProjectModalOpen(false); setProjectEditId(null);
+    const { error } = await supabase.from('projects').upsert(projToDb(project, user.id));
+    if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); }
   };
 
-  const deleteProject = (id) => {
+  const deleteProject = async (id) => {
     if (!window.confirm('この作品を削除しますか？')) return;
     setProjects(prev => prev.filter(p => p.id !== id));
     navigate('projectList');
+    const { error } = await supabase.from('projects').delete().eq('id', id).eq('user_id', user.id);
+    if (error) console.error(error);
   };
 
   // ── 作業記録の保存（在庫・作品を自動更新）──────────
-  const saveWorkLog = (logData) => {
+  const saveWorkLog = async (logData) => {
     const log = { ...logData, id: genId(), createdAt: new Date().toISOString() };
     setWorkLogs(prev => [log, ...prev]);
 
     // 毛糸の所持数を減らす
+    let updatedYarn = null;
     if (logData.yarnId && logData.usedGrams > 0) {
       setYarns(prev => prev.map(y => {
         if (y.id !== logData.yarnId) return y;
-        const weightPerBall = y.weightPerBall || 50;
-        const ballsUsed = logData.usedGrams / weightPerBall;
+        const ballsUsed = logData.usedGrams / (y.weightPerBall || 50);
         const newQty = Math.max(0, (y.quantity || 0) - ballsUsed);
-        return { ...y, quantity: parseFloat(newQty.toFixed(2)) };
+        updatedYarn = { ...y, quantity: parseFloat(newQty.toFixed(2)) };
+        return updatedYarn;
       }));
     }
 
     // 作品の使用毛糸リストを更新
+    let updatedProject = null;
     if (logData.projectId && logData.yarnId) {
       setProjects(prev => prev.map(p => {
         if (p.id !== logData.projectId) return p;
@@ -1768,17 +1900,36 @@ export default function App() {
           }];
         }
         const newTotal = (p.totalTimeMinutes || 0) + (logData.workMinutes || 0);
-        return { ...p, yarnUsages: newUsages, totalTimeMinutes: newTotal };
+        updatedProject = { ...p, yarnUsages: newUsages, totalTimeMinutes: newTotal };
+        return updatedProject;
       }));
     }
 
     setWorkLogModalOpen(false);
+
+    // Supabase に保存
+    const { error: logErr } = await supabase.from('work_logs').insert(logToDb(log, user.id));
+    if (logErr) console.error(logErr);
+    if (updatedYarn) {
+      const { error } = await supabase.from('yarns')
+        .update({ quantity: updatedYarn.quantity })
+        .eq('id', updatedYarn.id).eq('user_id', user.id);
+      if (error) console.error(error);
+    }
+    if (updatedProject) {
+      const { error } = await supabase.from('projects')
+        .update({ yarn_usages: updatedProject.yarnUsages, total_time_minutes: updatedProject.totalTimeMinutes })
+        .eq('id', updatedProject.id).eq('user_id', user.id);
+      if (error) console.error(error);
+    }
   };
 
   // ── 段数カウンターの保存 ───────────────────────────
-  const saveRowCount = (data) => {
+  const saveRowCount = async (data) => {
     const record = { ...data, id: genId(), createdAt: new Date().toISOString() };
     setRowCounts(prev => [record, ...prev]);
+    const { error } = await supabase.from('row_counts').insert(rcToDb(record, user.id));
+    if (error) console.error(error);
   };
 
   // ── ナビゲーション ──────────────────────────────────
@@ -1857,6 +2008,14 @@ export default function App() {
       default:           return new Date(b.createdAt) - new Date(a.createdAt);
     }
   });
+
+  // ── 認証チェック ────────────────────────────────────
+  if (authLoading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: FONT, color: C.textSub }}>
+      読み込み中...
+    </div>
+  );
+  if (!user) return <LoginScreen />;
 
   const selectedYarn    = yarns.find(y => y.id === selectedYarnId);
   const selectedProject = projects.find(p => p.id === selectedProjectId);
@@ -1967,9 +2126,19 @@ export default function App() {
           yarns={yarns}
           workLogs={workLogs}
           onExportCSV={exportCSV}
-          onClearData={() => {
+          userEmail={user.email}
+          onLogout={async () => {
+            await supabase.auth.signOut();
+          }}
+          onClearData={async () => {
             if (window.confirm('全データを削除しますか？この操作は元に戻せません。')) {
               setYarns([]); setProjects([]); setWorkLogs([]); setRowCounts([]);
+              await Promise.all([
+                supabase.from('yarns').delete().eq('user_id', user.id),
+                supabase.from('projects').delete().eq('user_id', user.id),
+                supabase.from('work_logs').delete().eq('user_id', user.id),
+                supabase.from('row_counts').delete().eq('user_id', user.id),
+              ]);
             }
           }}
         />
