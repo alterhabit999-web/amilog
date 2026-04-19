@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+// Service Worker 登録
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/amilog/sw.js').catch(() => {});
+  });
+}
+
 // Supabase クライアント初期化
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL,
