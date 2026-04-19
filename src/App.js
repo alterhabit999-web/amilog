@@ -96,13 +96,13 @@ function formatTime(minutes) {
   return h > 0 ? `${h}時間 ${m}分` : `${m}分`;
 }
 
-function toBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = (e) => resolve(e.target.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+async function uploadToStorage(file, userId) {
+  const ext  = file.name.split('.').pop() || 'jpg';
+  const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from('amilog-photos').upload(path, file);
+  if (error) throw error;
+  const { data } = supabase.storage.from('amilog-photos').getPublicUrl(path);
+  return data.publicUrl;
 }
 
 function calcProjectCost(project, yarns) {
@@ -431,13 +431,15 @@ function SelectWrapper({ value, onChange, children, style }) {
   );
 }
 
-function PhotoInput({ label, value, onChange }) {
+function PhotoInput({ label, value, onChange, userId }) {
+  const [uploading, setUploading] = useState(false);
   return (
     <div style={S.formGroup}>
       <label style={S.label}>{label}</label>
       <input
         type="file"
         accept="image/*"
+        disabled={uploading}
         onChange={async (e) => {
           const file = e.target.files[0];
           if (!file) return;
@@ -445,10 +447,20 @@ function PhotoInput({ label, value, onChange }) {
             alert('3MB以下の画像を選択してください');
             return;
           }
-          onChange(await toBase64(file));
+          setUploading(true);
+          try {
+            const url = await uploadToStorage(file, userId);
+            onChange(url);
+          } catch (err) {
+            console.error(err);
+            alert('写真のアップロードに失敗しました: ' + err.message);
+          } finally {
+            setUploading(false);
+          }
         }}
-        style={{ fontSize: 13, color: C.textSub, width: '100%' }}
+        style={{ fontSize: 13, color: C.textSub, width: '100%', opacity: uploading ? 0.5 : 1 }}
       />
+      {uploading && <p style={{ fontSize: 12, color: C.textSub, margin: '4px 0 0' }}>アップロード中...</p>}
       {value && (
         <div style={{ marginTop: 8, position: 'relative' }}>
           <img src={value} alt="preview" style={{ width: '100%', maxHeight: 160, objectFit: 'cover' }} />
@@ -1136,7 +1148,7 @@ function SettingsScreen({ projects, yarns, workLogs, onExportCSV, onClearData, u
 // ═══════════════════════════════════════════════════════════════
 // YarnFormModal
 // ═══════════════════════════════════════════════════════════════
-function YarnFormModal({ yarn, onSave, onClose }) {
+function YarnFormModal({ yarn, onSave, onClose, userId }) {
   const [form, setForm] = useState({
     name: '', maker: '', material: '', thickness: '',
     colorName: '', colorNumber: '', lot: '',
@@ -1241,8 +1253,8 @@ function YarnFormModal({ yarn, onSave, onClose }) {
 
         <div style={S.divider} />
 
-        <PhotoInput label="写真" value={form.photoUrl} onChange={v => set('photoUrl', v)} />
-        <PhotoInput label="使用作品例の写真" value={form.usagePhotoUrl} onChange={v => set('usagePhotoUrl', v)} />
+        <PhotoInput label="写真" value={form.photoUrl} onChange={v => set('photoUrl', v)} userId={userId} />
+        <PhotoInput label="使用作品例の写真" value={form.usagePhotoUrl} onChange={v => set('usagePhotoUrl', v)} userId={userId} />
 
         <div style={S.formGroup}>
           <label style={S.label}>メモ</label>
@@ -1268,7 +1280,7 @@ function YarnFormModal({ yarn, onSave, onClose }) {
 // ═══════════════════════════════════════════════════════════════
 // ProjectFormModal
 // ═══════════════════════════════════════════════════════════════
-function ProjectFormModal({ project, onSave, onClose }) {
+function ProjectFormModal({ project, onSave, onClose, userId }) {
   const [form, setForm] = useState({
     name: '', description: '', status: '進行中',
     startDate: new Date().toISOString().slice(0, 10),
@@ -1336,7 +1348,7 @@ function ProjectFormModal({ project, onSave, onClose }) {
           </div>
         </div>
 
-        <PhotoInput label="写真" value={form.photoUrl} onChange={v => set('photoUrl', v)} />
+        <PhotoInput label="写真" value={form.photoUrl} onChange={v => set('photoUrl', v)} userId={userId} />
 
         <div style={S.formGroup}>
           <label style={S.label}>メモ</label>
@@ -2160,6 +2172,7 @@ export default function App() {
           yarn={yarnEditId ? yarns.find(y => y.id === yarnEditId) : null}
           onSave={saveYarn}
           onClose={() => { setYarnModalOpen(false); setYarnEditId(null); }}
+          userId={user.id}
         />
       )}
 
@@ -2168,6 +2181,7 @@ export default function App() {
           project={projectEditId ? projects.find(p => p.id === projectEditId) : null}
           onSave={saveProject}
           onClose={() => { setProjectModalOpen(false); setProjectEditId(null); }}
+          userId={user.id}
         />
       )}
 
