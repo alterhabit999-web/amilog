@@ -52,15 +52,17 @@ const SCREEN_TITLES = {
   projectList:   '作品管理',
   projectDetail: '作品の詳細',
   workLog:       '作業記録',
+  counter:       '段数カウンター',
   settings:      '設定',
 };
 
 const NAV_ITEMS = [
-  { screen: 'yarnList',    label: '毛糸一覧', iconType: 'yarn'      },
-  { screen: 'search',      label: '条件検索', iconType: 'search'    },
-  { screen: 'projectList', label: '作品管理', iconType: 'clipboard' },
-  { screen: 'workLog',     label: '作業記録', iconType: 'notebook'  },
-  { screen: 'settings',    label: '設定',     iconType: 'settings'  },
+  { screen: 'yarnList',    label: '毛糸一覧',       iconType: 'yarn'      },
+  { screen: 'search',      label: '条件検索',       iconType: 'search'    },
+  { screen: 'projectList', label: '作品管理',       iconType: 'clipboard' },
+  { screen: 'workLog',     label: '作業記録',       iconType: 'notebook'  },
+  { screen: 'counter',     label: 'カウンター',     iconType: 'counter'   },
+  { screen: 'settings',    label: '設定',           iconType: 'settings'  },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -164,6 +166,14 @@ function Icon({ type, size = 22, color = 'currentColor', strokeWidth = 1.8 }) {
       <circle cx="12" cy="12" r="10"/>
       <line x1="12" y1="8" x2="12" y2="8.01"/>
       <polyline points="11 12 12 12 12 16"/>
+    </svg>
+  );
+  if (type === 'counter') return (
+    <svg {...a}>
+      <line x1="4"  y1="9"  x2="20" y2="9"/>
+      <line x1="4"  y1="15" x2="20" y2="15"/>
+      <line x1="10" y1="3"  x2="8"  y2="21"/>
+      <line x1="16" y1="3"  x2="14" y2="21"/>
     </svg>
   );
   return null;
@@ -1456,6 +1466,167 @@ function WorkLogFormModal({ yarns, projects, defaultProjectId, onSave, onClose }
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CounterScreen（段数カウンター）
+// ═══════════════════════════════════════════════════════════════
+function CounterScreen({ projects, rowCounts, onSave }) {
+  const [selectedProjectId, setSelectedProjectId] = useState(projects[0]?.id || '');
+  const [count, setCount]   = useState(0);
+  const [note,  setNote]    = useState('');
+  const [saved, setSaved]   = useState(false);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const adjust = (delta) => {
+    setCount(c => Math.max(0, c + delta));
+    setSaved(false);
+  };
+
+  const handleSave = () => {
+    if (!selectedProjectId) { alert('作品を選択してください'); return; }
+    onSave({ projectId: selectedProjectId, date: today, count, note });
+    setSaved(true);
+    setNote('');
+  };
+
+  const handleProjectChange = (id) => {
+    setSelectedProjectId(id);
+    setCount(0);
+    setSaved(false);
+  };
+
+  const history = rowCounts
+    .filter(r => r.projectId === selectedProjectId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 10);
+
+  return (
+    <div style={S.content}>
+
+      {/* 作品選択 */}
+      <div style={S.formGroup}>
+        <label style={S.label}>作品を選択</label>
+        {projects.length === 0 ? (
+          <p style={{ color: C.textMuted, fontSize: 13, margin: 0 }}>
+            先に「作品管理」から作品を登録してください
+          </p>
+        ) : (
+          <SelectWrapper
+            value={selectedProjectId}
+            onChange={e => handleProjectChange(e.target.value)}
+          >
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </SelectWrapper>
+        )}
+      </div>
+
+      {/* カウンター表示 */}
+      <div style={{
+        textAlign: 'center',
+        padding: '36px 0 28px',
+        background: C.bgKinari,
+        marginBottom: 16,
+      }}>
+        <p style={{ margin: '0 0 4px', fontSize: 11, color: C.textSub, letterSpacing: '0.12em', textTransform: 'uppercase' }}>ROWS</p>
+        <p style={{ margin: 0, fontSize: 88, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: '-0.02em' }}>
+          {count}
+        </p>
+        <p style={{ margin: '6px 0 0', fontSize: 14, color: C.textSub }}>段</p>
+      </div>
+
+      {/* ±ボタン */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+        {[
+          { delta: -10, label: '−10', accent: false },
+          { delta: -1,  label: '−１', accent: false },
+          { delta: +1,  label: '＋１', accent: true  },
+          { delta: +10, label: '＋10', accent: true  },
+        ].map(({ delta, label, accent }) => (
+          <button
+            key={delta}
+            onClick={() => adjust(delta)}
+            style={{
+              ...(accent ? S.btnPrimary : S.btnSecondary),
+              fontSize: 16,
+              fontWeight: 700,
+              padding: '18px 0',
+              borderRadius: 4,
+              display: 'block',
+              width: '100%',
+              textAlign: 'center',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* リセット */}
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <button
+          onClick={() => { setCount(0); setSaved(false); }}
+          style={{ ...S.btnDanger, fontSize: 12 }}
+        >
+          リセット
+        </button>
+      </div>
+
+      {/* 保存エリア */}
+      <div style={{ ...S.card, background: C.bgGray, marginBottom: 24 }}>
+        <p style={S.sectionTitle}>この段数を記録する</p>
+        <div style={S.formGroup}>
+          <label style={S.label}>メモ（任意）</label>
+          <input
+            style={S.input}
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="例：右袖の3段目まで完了"
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={!selectedProjectId || projects.length === 0}
+          style={{
+            ...S.btnAccent,
+            width: '100%',
+            padding: '14px',
+            fontSize: 15,
+            fontWeight: 700,
+            opacity: (!selectedProjectId || projects.length === 0) ? 0.5 : 1,
+            cursor: (!selectedProjectId || projects.length === 0) ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {saved ? '✓ 保存しました！' : `${count} 段を記録する`}
+        </button>
+      </div>
+
+      {/* 記録履歴 */}
+      {history.length > 0 && (
+        <div>
+          <p style={S.sectionTitle}>記録履歴（直近 {history.length} 件）</p>
+          {history.map(r => (
+            <div key={r.id} style={{
+              ...S.card,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px 16px',
+            }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 13, color: C.textSub }}>{formatDate(r.date)}</p>
+                {r.note && <p style={{ margin: '2px 0 0', fontSize: 12, color: C.textMuted }}>{r.note}</p>}
+              </div>
+              <span style={{ fontSize: 22, fontWeight: 700, color: C.accent }}>{r.count}<span style={{ fontSize: 13, fontWeight: 400, color: C.textSub, marginLeft: 2 }}>段</span></span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // App（メインコンポーネント）
 // ═══════════════════════════════════════════════════════════════
 export default function App() {
@@ -1464,9 +1635,10 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── データ ─────────────────────────────────────────
-  const [yarns,    setYarns]    = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [workLogs, setWorkLogs] = useState([]);
+  const [yarns,     setYarns]     = useState([]);
+  const [projects,  setProjects]  = useState([]);
+  const [workLogs,  setWorkLogs]  = useState([]);
+  const [rowCounts, setRowCounts] = useState([]);
 
   // ── 選択中アイテム ──────────────────────────────────
   const [selectedYarnId,    setSelectedYarnId]    = useState(null);
@@ -1499,9 +1671,10 @@ export default function App() {
       const raw = localStorage.getItem('amilogData');
       if (raw) {
         const d = JSON.parse(raw);
-        setYarns(d.yarns    || []);
+        setYarns(d.yarns       || []);
         setProjects(d.projects || []);
         setWorkLogs(d.workLogs || []);
+        setRowCounts(d.rowCounts || []);
       }
     } catch (e) {
       console.error('データ読み込みエラー', e);
@@ -1514,12 +1687,12 @@ export default function App() {
     // 読み込みが完了する前は保存しない
     if (!isLoaded.current) return;
     try {
-      localStorage.setItem('amilogData', JSON.stringify({ yarns, projects, workLogs }));
+      localStorage.setItem('amilogData', JSON.stringify({ yarns, projects, workLogs, rowCounts }));
     } catch (e) {
       console.error('データ保存エラー（容量超過の可能性）', e);
       alert('データの保存に失敗しました。写真のデータが大きすぎる可能性があります。');
     }
-  }, [yarns, projects, workLogs]);
+  }, [yarns, projects, workLogs, rowCounts]);
 
   // ── 毛糸 CRUD ───────────────────────────────────────
   const saveYarn = (data) => {
@@ -1600,6 +1773,12 @@ export default function App() {
     }
 
     setWorkLogModalOpen(false);
+  };
+
+  // ── 段数カウンターの保存 ───────────────────────────
+  const saveRowCount = (data) => {
+    const record = { ...data, id: genId(), createdAt: new Date().toISOString() };
+    setRowCounts(prev => [record, ...prev]);
   };
 
   // ── ナビゲーション ──────────────────────────────────
@@ -1774,6 +1953,14 @@ export default function App() {
         />
       )}
 
+      {screen === 'counter' && (
+        <CounterScreen
+          projects={projects}
+          rowCounts={rowCounts}
+          onSave={saveRowCount}
+        />
+      )}
+
       {screen === 'settings' && (
         <SettingsScreen
           projects={projects}
@@ -1782,7 +1969,7 @@ export default function App() {
           onExportCSV={exportCSV}
           onClearData={() => {
             if (window.confirm('全データを削除しますか？この操作は元に戻せません。')) {
-              setYarns([]); setProjects([]); setWorkLogs([]);
+              setYarns([]); setProjects([]); setWorkLogs([]); setRowCounts([]);
             }
           }}
         />
