@@ -60,23 +60,29 @@ const YARN_SORTS = [
 ];
 
 const SCREEN_TITLES = {
-  yarnList:      'あみログ',
-  yarnDetail:    '毛糸の詳細',
-  search:        '条件検索',
-  projectList:   '作品管理',
-  projectDetail: '作品の詳細',
-  workLog:       '作業記録',
-  counter:       '段数カウンター',
-  settings:      '設定',
+  yarnList:             'あみログ',
+  yarnDetail:           '毛糸の詳細',
+  search:               '条件検索',
+  projectList:          '作品管理',
+  projectDetail:        '作品の詳細',
+  workLog:              '作業記録',
+  counter:              '段数カウンター',
+  yarnLists:            'リスト管理',
+  yarnListDetail:       'リストの詳細',
+  communityLists:       'みんなの毛糸リスト',
+  communityListDetail:  'リストを見る',
+  settings:             '設定',
 };
 
 const NAV_ITEMS = [
-  { screen: 'yarnList',    label: '毛糸一覧',       iconType: 'yarn'      },
-  { screen: 'search',      label: '条件検索',       iconType: 'search'    },
-  { screen: 'projectList', label: '作品管理',       iconType: 'clipboard' },
-  { screen: 'workLog',     label: '作業記録',       iconType: 'notebook'  },
-  { screen: 'counter',     label: 'カウンター',     iconType: 'counter'   },
-  { screen: 'settings',    label: '設定',           iconType: 'settings'  },
+  { screen: 'yarnList',       label: '毛糸一覧',          iconType: 'yarn'      },
+  { screen: 'search',         label: '条件検索',          iconType: 'search'    },
+  { screen: 'projectList',    label: '作品管理',          iconType: 'clipboard' },
+  { screen: 'workLog',        label: '作業記録',          iconType: 'notebook'  },
+  { screen: 'counter',        label: 'カウンター',        iconType: 'counter'   },
+  { screen: 'yarnLists',      label: 'リスト管理',        iconType: 'list'      },
+  { screen: 'communityLists', label: 'みんなのリスト',    iconType: 'users'     },
+  { screen: 'settings',       label: '設定',              iconType: 'settings'  },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -188,6 +194,56 @@ function Icon({ type, size = 22, color = 'currentColor', strokeWidth = 1.8 }) {
       <line x1="4"  y1="15" x2="20" y2="15"/>
       <line x1="10" y1="3"  x2="8"  y2="21"/>
       <line x1="16" y1="3"  x2="14" y2="21"/>
+    </svg>
+  );
+  if (type === 'list') return (
+    <svg {...a}>
+      <line x1="8" y1="6"  x2="21" y2="6"/>
+      <line x1="8" y1="12" x2="21" y2="12"/>
+      <line x1="8" y1="18" x2="21" y2="18"/>
+      <circle cx="4" cy="6"  r="1"/>
+      <circle cx="4" cy="12" r="1"/>
+      <circle cx="4" cy="18" r="1"/>
+    </svg>
+  );
+  if (type === 'users') return (
+    <svg {...a}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  );
+  if (type === 'bell') return (
+    <svg {...a}>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+  );
+  if (type === 'plus') return (
+    <svg {...a}>
+      <line x1="12" y1="5"  x2="12" y2="19"/>
+      <line x1="5"  y1="12" x2="19" y2="12"/>
+    </svg>
+  );
+  if (type === 'trash') return (
+    <svg {...a}>
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6M14 11v6"/>
+    </svg>
+  );
+  if (type === 'lock') return (
+    <svg {...a}>
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  );
+  if (type === 'globe') return (
+    <svg {...a}>
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20"/>
     </svg>
   );
   return null;
@@ -493,6 +549,7 @@ const ADD_LABELS = {
   yarnList:    '＋ 毛糸追加',
   search:      '＋ 毛糸追加',
   projectList: '＋ 作品追加',
+  yarnLists:   '＋ リスト追加',
 };
 
 function Header({ screen, onMenuClick, onBack, showBack, onAdd, showAdd }) {
@@ -589,8 +646,35 @@ function Sidebar({ currentScreen, onNavigate, onClose }) {
 // YarnListScreen
 // ═══════════════════════════════════════════════════════════════
 function YarnListScreen({ yarns, sort, onSortChange, onYarnClick }) {
+  const lowStock = yarns.filter(y =>
+    y.lowStockThreshold != null && y.lowStockThreshold !== '' &&
+    (y.quantity ?? 0) < Number(y.lowStockThreshold)
+  );
   return (
     <div style={S.content}>
+      {lowStock.length > 0 && (
+        <div style={{
+          background: C.dangerLight,
+          border: `1px solid ${C.danger}`,
+          padding: '10px 12px',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+        }}>
+          <Icon type="bell" size={18} color={C.danger} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.danger }}>
+              残量が少ない毛糸：{lowStock.length}件
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: C.text, wordBreak: 'break-word' }}>
+              {lowStock.slice(0, 3).map(y => `${y.name}（${y.quantity ?? 0}玉）`).join('、')}
+              {lowStock.length > 3 && ` 他${lowStock.length - 3}件`}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 12, color: C.textSub, flexShrink: 0 }}>並び替え：</span>
         <SelectWrapper value={sort} onChange={e => onSortChange(e.target.value)}>
@@ -1159,13 +1243,13 @@ function YarnFormModal({ yarn, onSave, onClose, userId }) {
   const [form, setForm] = useState({
     name: '', maker: '', material: '', thickness: '',
     colorName: '', colorNumber: '', lot: '',
-    pricePerBall: '', weightPerBall: '', lengthPerBall: '',
-    quantity: '', note: '', photoUrl: '', usagePhotoUrl: '',
+    note: '', photoUrl: '', usagePhotoUrl: '',
     ...(yarn || {}),
-    pricePerBall:  yarn?.pricePerBall  ?? '',
-    weightPerBall: yarn?.weightPerBall ?? '',
-    lengthPerBall: yarn?.lengthPerBall ?? '',
-    quantity:      yarn?.quantity      ?? '',
+    pricePerBall:       yarn?.pricePerBall       ?? '',
+    weightPerBall:      yarn?.weightPerBall      ?? '',
+    lengthPerBall:      yarn?.lengthPerBall      ?? '',
+    quantity:           yarn?.quantity           ?? '',
+    lowStockThreshold:  yarn?.lowStockThreshold  ?? '',
   });
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
@@ -1174,10 +1258,11 @@ function YarnFormModal({ yarn, onSave, onClose, userId }) {
     if (!form.name.trim()) { alert('毛糸名を入力してください'); return; }
     onSave({
       ...form,
-      pricePerBall:  form.pricePerBall  !== '' ? Number(form.pricePerBall)  : null,
-      weightPerBall: form.weightPerBall !== '' ? Number(form.weightPerBall) : null,
-      lengthPerBall: form.lengthPerBall !== '' ? Number(form.lengthPerBall) : null,
-      quantity:      form.quantity      !== '' ? Number(form.quantity)      : null,
+      pricePerBall:       form.pricePerBall       !== '' ? Number(form.pricePerBall)       : null,
+      weightPerBall:      form.weightPerBall      !== '' ? Number(form.weightPerBall)      : null,
+      lengthPerBall:      form.lengthPerBall      !== '' ? Number(form.lengthPerBall)      : null,
+      quantity:           form.quantity           !== '' ? Number(form.quantity)           : null,
+      lowStockThreshold:  form.lowStockThreshold  !== '' ? Number(form.lowStockThreshold)  : null,
     });
   };
 
@@ -1252,11 +1337,21 @@ function YarnFormModal({ yarn, onSave, onClose, userId }) {
           </div>
         </div>
 
-        <div style={S.formGroup}>
-          <label style={S.label}>所持数（玉）</label>
-          <input style={S.input} type="number" min="0" step="0.1" value={form.quantity}
-            onChange={e => set('quantity', e.target.value)} placeholder="例：5" />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+          <div>
+            <label style={S.label}>所持数（玉）</label>
+            <input style={S.input} type="number" min="0" step="0.1" value={form.quantity}
+              onChange={e => set('quantity', e.target.value)} placeholder="例：5" />
+          </div>
+          <div>
+            <label style={S.label}>残量アラート閾値</label>
+            <input style={S.input} type="number" min="0" step="0.1" value={form.lowStockThreshold}
+              onChange={e => set('lowStockThreshold', e.target.value)} placeholder="例：1" />
+          </div>
         </div>
+        <p style={{ fontSize: 11, color: C.textMuted, margin: '-8px 0 16px' }}>
+          所持数が閾値を下回ると毛糸一覧にアラートが表示されます（未設定で無効）
+        </p>
 
         <div style={S.divider} />
 
@@ -1504,8 +1599,8 @@ function WorkLogFormModal({ yarns, projects, defaultProjectId, onSave, onClose }
 // ═══════════════════════════════════════════════════════════════
 // DB ↔ JS 変換関数（snake_case ↔ camelCase）
 // ═══════════════════════════════════════════════════════════════
-const yarnToDb   = (y, uid) => ({ id: y.id, user_id: uid, name: y.name, maker: y.maker, material: y.material, thickness: y.thickness, color_name: y.colorName, color_number: y.colorNumber, lot: y.lot, price_per_ball: y.pricePerBall, weight_per_ball: y.weightPerBall, length_per_ball: y.lengthPerBall, quantity: y.quantity, photo_url: y.photoUrl, usage_photo_url: y.usagePhotoUrl, note: y.note, created_at: y.createdAt });
-const yarnFromDb = (r) => ({ id: r.id, name: r.name, maker: r.maker, material: r.material, thickness: r.thickness, colorName: r.color_name, colorNumber: r.color_number, lot: r.lot, pricePerBall: r.price_per_ball, weightPerBall: r.weight_per_ball, lengthPerBall: r.length_per_ball, quantity: r.quantity, photoUrl: r.photo_url, usagePhotoUrl: r.usage_photo_url, note: r.note, createdAt: r.created_at });
+const yarnToDb   = (y, uid) => ({ id: y.id, user_id: uid, name: y.name, maker: y.maker, material: y.material, thickness: y.thickness, color_name: y.colorName, color_number: y.colorNumber, lot: y.lot, price_per_ball: y.pricePerBall, weight_per_ball: y.weightPerBall, length_per_ball: y.lengthPerBall, quantity: y.quantity, low_stock_threshold: y.lowStockThreshold, photo_url: y.photoUrl, usage_photo_url: y.usagePhotoUrl, note: y.note, created_at: y.createdAt });
+const yarnFromDb = (r) => ({ id: r.id, name: r.name, maker: r.maker, material: r.material, thickness: r.thickness, colorName: r.color_name, colorNumber: r.color_number, lot: r.lot, pricePerBall: r.price_per_ball, weightPerBall: r.weight_per_ball, lengthPerBall: r.length_per_ball, quantity: r.quantity, lowStockThreshold: r.low_stock_threshold, photoUrl: r.photo_url, usagePhotoUrl: r.usage_photo_url, note: r.note, createdAt: r.created_at });
 
 const projToDb   = (p, uid) => ({ id: p.id, user_id: uid, name: p.name, description: p.description, status: p.status, start_date: p.startDate, end_date: p.endDate, photo_url: p.photoUrl, total_time_minutes: p.totalTimeMinutes, yarn_usages: p.yarnUsages, note: p.note, created_at: p.createdAt });
 const projFromDb = (r) => ({ id: r.id, name: r.name, description: r.description, status: r.status, startDate: r.start_date, endDate: r.end_date, photoUrl: r.photo_url, totalTimeMinutes: r.total_time_minutes, yarnUsages: r.yarn_usages || [], note: r.note, createdAt: r.created_at });
@@ -1515,6 +1610,330 @@ const logFromDb  = (r) => ({ id: r.id, date: r.date, projectId: r.project_id, ya
 
 const rcToDb     = (r, uid) => ({ id: r.id, user_id: uid, project_id: r.projectId, date: r.date, count: r.count, note: r.note, created_at: r.createdAt });
 const rcFromDb   = (r) => ({ id: r.id, projectId: r.project_id, date: r.date, count: r.count, note: r.note, createdAt: r.created_at });
+
+const listToDb   = (l, uid) => ({ id: l.id, user_id: uid, name: l.name, description: l.description, is_public: !!l.isPublic, items: l.items || [], created_at: l.createdAt });
+const listFromDb = (r) => ({ id: r.id, userId: r.user_id, name: r.name, description: r.description, isPublic: !!r.is_public, items: r.items || [], createdAt: r.created_at });
+
+// スナップショット用に毛糸データを抽出
+const yarnToSnapshot = (y) => ({
+  yarnId: y.id,
+  name: y.name, maker: y.maker, material: y.material, thickness: y.thickness,
+  colorName: y.colorName, colorNumber: y.colorNumber,
+  pricePerBall: y.pricePerBall, weightPerBall: y.weightPerBall, lengthPerBall: y.lengthPerBall,
+  photoUrl: y.photoUrl, note: y.note,
+});
+
+// ═══════════════════════════════════════════════════════════════
+// YarnListsScreen（自分のリスト一覧）
+// ═══════════════════════════════════════════════════════════════
+function YarnListsScreen({ lists, onListClick, onCreate }) {
+  return (
+    <div style={S.content}>
+      <button onClick={onCreate} style={{ ...S.btnPrimary, width: '100%', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <Icon type="plus" size={16} color="#fff" strokeWidth={2.2} />
+        <span>新しいリストを作成</span>
+      </button>
+      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{lists.length} 件のリスト</p>
+      {lists.length === 0 ? (
+        <EmptyState title="リストがまだありません" desc="毛糸をグループ化してテーマごとに整理できます" iconType="list" />
+      ) : (
+        lists.map(list => (
+          <div key={list.id} onClick={() => onListClick(list.id)}
+            style={{ ...S.card, cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: C.text }}>{list.name}</p>
+                <Icon type={list.isPublic ? 'globe' : 'lock'} size={13} color={list.isPublic ? C.success : C.textMuted} />
+              </div>
+              {list.description && <p style={{ margin: '2px 0', fontSize: 12, color: C.textSub }}>{list.description}</p>}
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: C.textMuted }}>
+                {(list.items || []).length} 件の毛糸 · {list.isPublic ? '公開' : 'プライベート'}
+              </p>
+            </div>
+            <span style={{ color: C.textMuted, fontSize: 18, alignSelf: 'center' }}>›</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// YarnListDetailScreen（自分のリスト詳細・編集）
+// ═══════════════════════════════════════════════════════════════
+function YarnListDetailScreen({ list, yarns, onEdit, onDelete, onTogglePublic, onAddYarns, onRemoveItem }) {
+  if (!list) return null;
+  return (
+    <div style={S.content}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{list.name}</h2>
+        <Icon type={list.isPublic ? 'globe' : 'lock'} size={16} color={list.isPublic ? C.success : C.textMuted} />
+      </div>
+      {list.description && <p style={{ margin: '0 0 12px', fontSize: 13, color: C.textSub }}>{list.description}</p>}
+
+      <div style={{
+        background: list.isPublic ? C.successLight : C.bgGray,
+        padding: '10px 12px', marginBottom: 16, fontSize: 12, color: C.text,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <span>{list.isPublic ? 'このリストは公開されています' : 'プライベートリスト'}</span>
+        <button onClick={onTogglePublic} style={{
+          ...S.btnSecondary, padding: '4px 10px', fontSize: 12,
+        }}>
+          {list.isPublic ? '非公開にする' : '公開する'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button onClick={onEdit} style={{ ...S.btnSecondary, flex: 1 }}>情報を編集</button>
+        <button onClick={onDelete} style={{ ...S.btnSecondary, flex: 1, color: C.danger, borderColor: C.danger }}>リストを削除</button>
+      </div>
+
+      <button onClick={onAddYarns} style={{ ...S.btnPrimary, width: '100%', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <Icon type="plus" size={16} color="#fff" strokeWidth={2.2} />
+        <span>毛糸をリストに追加</span>
+      </button>
+
+      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{list.items.length} 件の毛糸</p>
+      {list.items.length === 0 ? (
+        <EmptyState title="毛糸がまだ入っていません" desc="上のボタンから追加してください" iconType="yarn" />
+      ) : (
+        list.items.map(item => {
+          const current = yarns.find(y => y.id === item.yarnId);
+          const display = current || item;
+          return (
+            <div key={item.yarnId} style={{ ...S.card, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{
+                width: 48, height: 48, flexShrink: 0, background: C.bgKinari,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+              }}>
+                {display.photoUrl
+                  ? <img src={display.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <Icon type="yarn" size={22} color={C.bgBeige} strokeWidth={1.4} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{display.name}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: C.textSub }}>
+                  {[display.maker, display.material, display.colorName].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+              <button onClick={() => onRemoveItem(item.yarnId)} style={{
+                background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted, padding: 4,
+              }} aria-label="削除">
+                <Icon type="trash" size={16} />
+              </button>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CommunityListsScreen（みんなの毛糸リスト）
+// ═══════════════════════════════════════════════════════════════
+function CommunityListsScreen({ lists, onListClick, currentUserId }) {
+  const others = lists.filter(l => l.userId !== currentUserId);
+  return (
+    <div style={S.content}>
+      <p style={{ fontSize: 13, color: C.textSub, marginBottom: 12, lineHeight: 1.5 }}>
+        他のユーザーが公開しているリストを見て、気になった毛糸を自分の一覧に追加できます。
+      </p>
+      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{others.length} 件の公開リスト</p>
+      {others.length === 0 ? (
+        <EmptyState title="公開リストがまだありません" desc="あなたが最初の1人になるかも" iconType="users" />
+      ) : (
+        others.map(list => (
+          <div key={list.id} onClick={() => onListClick(list.id)}
+            style={{ ...S.card, cursor: 'pointer' }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{list.name}</p>
+            {list.description && <p style={{ margin: '4px 0 0', fontSize: 12, color: C.textSub }}>{list.description}</p>}
+            <p style={{ margin: '6px 0 0', fontSize: 11, color: C.textMuted }}>
+              {(list.items || []).length} 件の毛糸
+            </p>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CommunityListDetailScreen（公開リスト詳細・自分の一覧に追加）
+// ═══════════════════════════════════════════════════════════════
+function CommunityListDetailScreen({ list, myYarns, onAddToMyYarns }) {
+  if (!list) return null;
+  return (
+    <div style={S.content}>
+      <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>{list.name}</h2>
+      {list.description && <p style={{ margin: '0 0 16px', fontSize: 13, color: C.textSub }}>{list.description}</p>}
+      <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>{list.items.length} 件の毛糸</p>
+
+      {list.items.length === 0 ? (
+        <EmptyState title="毛糸が入っていません" desc="" iconType="yarn" />
+      ) : (
+        list.items.map(item => {
+          const already = myYarns.some(y =>
+            y.name === item.name && y.maker === item.maker && y.colorName === item.colorName
+          );
+          return (
+            <div key={item.yarnId} style={{ ...S.card, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{
+                width: 64, height: 64, flexShrink: 0, background: C.bgKinari,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+              }}>
+                {item.photoUrl
+                  ? <img src={item.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <Icon type="yarn" size={28} color={C.bgBeige} strokeWidth={1.4} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{item.name}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: C.textSub }}>
+                  {[item.maker, item.material, item.thickness].filter(Boolean).join(' · ')}
+                </p>
+                {item.colorName && <p style={{ margin: '2px 0 0', fontSize: 11, color: C.textMuted }}>{item.colorName}{item.colorNumber ? ` (${item.colorNumber})` : ''}</p>}
+                <button
+                  onClick={() => onAddToMyYarns(item)}
+                  disabled={already}
+                  style={{
+                    marginTop: 6, padding: '4px 10px', fontSize: 12,
+                    background: already ? C.bgGray : C.accent,
+                    color: already ? C.textMuted : '#fff',
+                    border: 'none', cursor: already ? 'default' : 'pointer', borderRadius: 4,
+                    fontFamily: FONT,
+                  }}
+                >
+                  {already ? '追加済み' : '自分の一覧に追加'}
+                </button>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// YarnListFormModal（リスト新規作成・編集）
+// ═══════════════════════════════════════════════════════════════
+function YarnListFormModal({ list, onSave, onClose }) {
+  const [form, setForm] = useState({
+    name: '', description: '', isPublic: false,
+    ...(list || {}),
+  });
+  const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const handleSubmit = () => {
+    if (!form.name.trim()) { alert('リスト名を入力してください'); return; }
+    onSave(form);
+  };
+
+  return (
+    <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={S.modal}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{list ? 'リストを編集' : '新しいリスト'}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: C.textMuted, padding: 0 }}>×</button>
+        </div>
+
+        <div style={S.formGroup}>
+          <label style={S.label}>リスト名 *</label>
+          <input style={S.input} value={form.name} onChange={e => set('name', e.target.value)} placeholder="例：お気に入りコットン" />
+        </div>
+
+        <div style={S.formGroup}>
+          <label style={S.label}>説明</label>
+          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' }}
+            value={form.description} onChange={e => set('description', e.target.value)}
+            placeholder="このリストについての説明（任意）" />
+        </div>
+
+        <div style={S.formGroup}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+            <input type="checkbox" checked={form.isPublic} onChange={e => set('isPublic', e.target.checked)} />
+            <span>このリストを公開する（他のユーザーが閲覧可能）</span>
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleSubmit} style={{ ...S.btnPrimary, flex: 1 }}>
+            {list ? '更新する' : '作成する'}
+          </button>
+          <button onClick={onClose} style={S.btnSecondary}>キャンセル</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AddYarnsToListModal（リストに毛糸を追加する選択モーダル）
+// ═══════════════════════════════════════════════════════════════
+function AddYarnsToListModal({ yarns, existingIds, onSave, onClose }) {
+  const [selected, setSelected] = useState(new Set());
+  const toggle = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const available = yarns.filter(y => !existingIds.includes(y.id));
+
+  return (
+    <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={S.modal}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>毛糸を追加</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: C.textMuted, padding: 0 }}>×</button>
+        </div>
+        <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>
+          {available.length} 件から選択（{selected.size} 件選択中）
+        </p>
+
+        {available.length === 0 ? (
+          <p style={{ fontSize: 13, color: C.textSub, padding: '20px 0', textAlign: 'center' }}>追加可能な毛糸がありません</p>
+        ) : (
+          <div style={{ maxHeight: '50vh', overflowY: 'auto', marginBottom: 16 }}>
+            {available.map(y => (
+              <label key={y.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 0', borderBottom: `1px solid ${C.borderLight}`,
+                cursor: 'pointer',
+              }}>
+                <input type="checkbox" checked={selected.has(y.id)} onChange={() => toggle(y.id)} />
+                <div style={{
+                  width: 36, height: 36, flexShrink: 0, background: C.bgKinari,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                }}>
+                  {y.photoUrl
+                    ? <img src={y.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <Icon type="yarn" size={16} color={C.bgBeige} strokeWidth={1.4} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{y.name}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: C.textSub }}>
+                    {[y.maker, y.material, y.colorName].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => onSave([...selected])} disabled={selected.size === 0}
+            style={{ ...S.btnPrimary, flex: 1, opacity: selected.size === 0 ? 0.5 : 1 }}>
+            {selected.size} 件を追加
+          </button>
+          <button onClick={onClose} style={S.btnSecondary}>キャンセル</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════
 // CounterScreen（段数カウンター）
@@ -1770,21 +2189,27 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // ── データ ─────────────────────────────────────────
-  const [yarns,     setYarns]     = useState([]);
-  const [projects,  setProjects]  = useState([]);
-  const [workLogs,  setWorkLogs]  = useState([]);
-  const [rowCounts, setRowCounts] = useState([]);
+  const [yarns,          setYarns]          = useState([]);
+  const [projects,       setProjects]       = useState([]);
+  const [workLogs,       setWorkLogs]       = useState([]);
+  const [rowCounts,      setRowCounts]      = useState([]);
+  const [yarnLists,      setYarnLists]      = useState([]);
+  const [communityLists, setCommunityLists] = useState([]);
 
   // ── 選択中アイテム ──────────────────────────────────
   const [selectedYarnId,    setSelectedYarnId]    = useState(null);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedListId,    setSelectedListId]    = useState(null);
 
   // ── モーダル ────────────────────────────────────────
-  const [yarnModalOpen,    setYarnModalOpen]    = useState(false);
-  const [yarnEditId,       setYarnEditId]       = useState(null);
-  const [projectModalOpen, setProjectModalOpen] = useState(false);
-  const [projectEditId,    setProjectEditId]    = useState(null);
-  const [workLogModalOpen, setWorkLogModalOpen] = useState(false);
+  const [yarnModalOpen,     setYarnModalOpen]     = useState(false);
+  const [yarnEditId,        setYarnEditId]        = useState(null);
+  const [projectModalOpen,  setProjectModalOpen]  = useState(false);
+  const [projectEditId,     setProjectEditId]     = useState(null);
+  const [workLogModalOpen,  setWorkLogModalOpen]  = useState(false);
+  const [listModalOpen,     setListModalOpen]     = useState(false);
+  const [listEditId,        setListEditId]        = useState(null);
+  const [addYarnsModalOpen, setAddYarnsModalOpen] = useState(false);
 
   // ── 毛糸一覧のソート ────────────────────────────────
   const [yarnSort, setYarnSort] = useState('newest');
@@ -1813,22 +2238,26 @@ export default function App() {
     if (user) {
       fetchData(user.id);
     } else {
-      setYarns([]); setProjects([]); setWorkLogs([]); setRowCounts([]);
+      setYarns([]); setProjects([]); setWorkLogs([]); setRowCounts([]); setYarnLists([]); setCommunityLists([]);
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchData = async (userId) => {
     try {
-      const [y, p, w, r] = await Promise.all([
+      const [y, p, w, r, l, cl] = await Promise.all([
         supabase.from('yarns').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('projects').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('work_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('row_counts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('yarn_lists').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('yarn_lists').select('*').eq('is_public', true).order('created_at', { ascending: false }),
       ]);
-      if (y.data) setYarns(y.data.map(yarnFromDb));
-      if (p.data) setProjects(p.data.map(projFromDb));
-      if (w.data) setWorkLogs(w.data.map(logFromDb));
-      if (r.data) setRowCounts(r.data.map(rcFromDb));
+      if (y.data)  setYarns(y.data.map(yarnFromDb));
+      if (p.data)  setProjects(p.data.map(projFromDb));
+      if (w.data)  setWorkLogs(w.data.map(logFromDb));
+      if (r.data)  setRowCounts(r.data.map(rcFromDb));
+      if (l.data)  setYarnLists(l.data.map(listFromDb));
+      if (cl.data) setCommunityLists(cl.data.map(listFromDb));
     } catch (e) {
       console.error('データ取得エラー', e);
     }
@@ -1943,6 +2372,87 @@ export default function App() {
     }
   };
 
+  // ── 毛糸リスト CRUD ─────────────────────────────────
+  const saveYarnList = async (data) => {
+    const id    = data.id || genId();
+    const list  = data.id
+      ? { ...yarnLists.find(l => l.id === data.id), ...data }
+      : { ...data, id, createdAt: new Date().toISOString(), items: [] };
+    if (data.id) {
+      setYarnLists(prev => prev.map(l => l.id === data.id ? list : l));
+    } else {
+      setYarnLists(prev => [list, ...prev]);
+    }
+    setListModalOpen(false); setListEditId(null);
+    const { error } = await supabase.from('yarn_lists').upsert(listToDb(list, user.id));
+    if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); }
+    refreshCommunityLists();
+  };
+
+  const deleteYarnList = async (id) => {
+    if (!window.confirm('このリストを削除しますか？')) return;
+    setYarnLists(prev => prev.filter(l => l.id !== id));
+    navigate('yarnLists');
+    const { error } = await supabase.from('yarn_lists').delete().eq('id', id).eq('user_id', user.id);
+    if (error) console.error(error);
+    refreshCommunityLists();
+  };
+
+  const updateList = async (updated) => {
+    setYarnLists(prev => prev.map(l => l.id === updated.id ? updated : l));
+    const { error } = await supabase.from('yarn_lists').upsert(listToDb(updated, user.id));
+    if (error) console.error(error);
+    refreshCommunityLists();
+  };
+
+  const toggleListPublic = async (id) => {
+    const list = yarnLists.find(l => l.id === id);
+    if (!list) return;
+    await updateList({ ...list, isPublic: !list.isPublic });
+  };
+
+  const addYarnsToList = async (listId, yarnIds) => {
+    const list = yarnLists.find(l => l.id === listId);
+    if (!list) return;
+    const existing = new Set(list.items.map(i => i.yarnId));
+    const newItems = yarnIds
+      .filter(id => !existing.has(id))
+      .map(id => {
+        const y = yarns.find(yy => yy.id === id);
+        return y ? yarnToSnapshot(y) : null;
+      })
+      .filter(Boolean);
+    await updateList({ ...list, items: [...list.items, ...newItems] });
+  };
+
+  const removeYarnFromList = async (listId, yarnId) => {
+    const list = yarnLists.find(l => l.id === listId);
+    if (!list) return;
+    await updateList({ ...list, items: list.items.filter(i => i.yarnId !== yarnId) });
+  };
+
+  const addSnapshotToMyYarns = async (snapshot) => {
+    const newYarn = {
+      ...snapshot,
+      id: genId(),
+      quantity: 0,
+      lowStockThreshold: null,
+      usagePhotoUrl: '',
+      lot: '',
+      createdAt: new Date().toISOString(),
+    };
+    delete newYarn.yarnId;
+    setYarns(prev => [newYarn, ...prev]);
+    const { error } = await supabase.from('yarns').upsert(yarnToDb(newYarn, user.id));
+    if (error) { console.error(error); alert('追加に失敗しました: ' + error.message); return; }
+    alert(`「${snapshot.name}」を自分の毛糸一覧に追加しました`);
+  };
+
+  const refreshCommunityLists = async () => {
+    const { data } = await supabase.from('yarn_lists').select('*').eq('is_public', true).order('created_at', { ascending: false });
+    if (data) setCommunityLists(data.map(listFromDb));
+  };
+
   // ── 段数カウンターの保存 ───────────────────────────
   const saveRowCount = async (data) => {
     const record = { ...data, id: genId(), createdAt: new Date().toISOString() };
@@ -1955,13 +2465,16 @@ export default function App() {
   const navigate = (s, params = {}) => {
     if (params.yarnId)    setSelectedYarnId(params.yarnId);
     if (params.projectId) setSelectedProjectId(params.projectId);
+    if (params.listId)    setSelectedListId(params.listId);
     setScreen(s);
     setSidebarOpen(false);
   };
 
   const goBack = () => {
-    if (screen === 'yarnDetail')    navigate('yarnList');
-    else if (screen === 'projectDetail') navigate('projectList');
+    if (screen === 'yarnDetail')           navigate('yarnList');
+    else if (screen === 'projectDetail')   navigate('projectList');
+    else if (screen === 'yarnListDetail')  navigate('yarnLists');
+    else if (screen === 'communityListDetail') navigate('communityLists');
     else navigate('yarnList');
   };
 
@@ -2040,16 +2553,21 @@ export default function App() {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   // ── ヘッダー右ボタン表示制御 ────────────────────────
-  const showAdd   = ['yarnList', 'search', 'projectList'].includes(screen);
-  const showBack  = ['yarnDetail', 'projectDetail'].includes(screen);
+  const showAdd   = ['yarnList', 'search', 'projectList', 'yarnLists'].includes(screen);
+  const showBack  = ['yarnDetail', 'projectDetail', 'yarnListDetail', 'communityListDetail'].includes(screen);
 
   const handleAdd = () => {
     if (screen === 'projectList') {
       setProjectEditId(null); setProjectModalOpen(true);
+    } else if (screen === 'yarnLists') {
+      setListEditId(null); setListModalOpen(true);
     } else {
       setYarnEditId(null); setYarnModalOpen(true);
     }
   };
+
+  const selectedList          = yarnLists.find(l => l.id === selectedListId);
+  const selectedCommunityList = communityLists.find(l => l.id === selectedListId);
 
   // ── レンダリング ────────────────────────────────────
   return (
@@ -2139,6 +2657,42 @@ export default function App() {
         />
       )}
 
+      {screen === 'yarnLists' && (
+        <YarnListsScreen
+          lists={yarnLists}
+          onListClick={id => navigate('yarnListDetail', { listId: id })}
+          onCreate={() => { setListEditId(null); setListModalOpen(true); }}
+        />
+      )}
+
+      {screen === 'yarnListDetail' && selectedList && (
+        <YarnListDetailScreen
+          list={selectedList}
+          yarns={yarns}
+          onEdit={() => { setListEditId(selectedList.id); setListModalOpen(true); }}
+          onDelete={() => deleteYarnList(selectedList.id)}
+          onTogglePublic={() => toggleListPublic(selectedList.id)}
+          onAddYarns={() => setAddYarnsModalOpen(true)}
+          onRemoveItem={(yid) => removeYarnFromList(selectedList.id, yid)}
+        />
+      )}
+
+      {screen === 'communityLists' && (
+        <CommunityListsScreen
+          lists={communityLists}
+          currentUserId={user.id}
+          onListClick={id => navigate('communityListDetail', { listId: id })}
+        />
+      )}
+
+      {screen === 'communityListDetail' && selectedCommunityList && (
+        <CommunityListDetailScreen
+          list={selectedCommunityList}
+          myYarns={yarns}
+          onAddToMyYarns={addSnapshotToMyYarns}
+        />
+      )}
+
       {screen === 'settings' && (
         <SettingsScreen
           projects={projects}
@@ -2199,6 +2753,26 @@ export default function App() {
           defaultProjectId={screen === 'projectDetail' ? selectedProjectId : null}
           onSave={saveWorkLog}
           onClose={() => setWorkLogModalOpen(false)}
+        />
+      )}
+
+      {listModalOpen && (
+        <YarnListFormModal
+          list={listEditId ? yarnLists.find(l => l.id === listEditId) : null}
+          onSave={saveYarnList}
+          onClose={() => { setListModalOpen(false); setListEditId(null); }}
+        />
+      )}
+
+      {addYarnsModalOpen && selectedList && (
+        <AddYarnsToListModal
+          yarns={yarns}
+          existingIds={selectedList.items.map(i => i.yarnId)}
+          onSave={async (ids) => {
+            await addYarnsToList(selectedList.id, ids);
+            setAddYarnsModalOpen(false);
+          }}
+          onClose={() => setAddYarnsModalOpen(false)}
         />
       )}
     </div>
