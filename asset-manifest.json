@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/amilog/static/css/main.76f72428.css",
-    "main.js": "/amilog/static/js/main.cc816182.js",
+    "main.js": "/amilog/static/js/main.53c7d1b3.js",
     "static/js/453.8c53b6f9.chunk.js": "/amilog/static/js/453.8c53b6f9.chunk.js",
     "index.html": "/amilog/index.html",
     "main.76f72428.css.map": "/amilog/static/css/main.76f72428.css.map",
-    "main.cc816182.js.map": "/amilog/static/js/main.cc816182.js.map",
+    "main.53c7d1b3.js.map": "/amilog/static/js/main.53c7d1b3.js.map",
     "453.8c53b6f9.chunk.js.map": "/amilog/static/js/453.8c53b6f9.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.76f72428.css",
-    "static/js/main.cc816182.js"
+    "static/js/main.53c7d1b3.js"
   ]
 }
